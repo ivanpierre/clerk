@@ -5,7 +5,8 @@
             [org.httpkit.server :as httpkit]
             [nextjournal.clerk.view :as view]
             [nextjournal.clerk.viewer :as v]
-            [lambdaisland.uri :as uri]))
+            [lambdaisland.uri :as uri])
+  (:import [nextjournal.io LimitWriter LimitWriter$LimitReachedException]))
 
 (def help-doc
   [{:type :markdown :text "Use `nextjournal.clerk/show!` to make your notebook appear…"}])
@@ -40,6 +41,19 @@
 #_(get-pagination-opts "")
 #_(get-pagination-opts "foo=bar&n=42&start=20")
 
+(defn limited-result [limit result]
+  (let [lw (LimitWriter. limit)]
+    (binding [*out* lw
+              *print-namespace-maps* false]
+      (try
+        (pr (view/make-printable result))
+        (.getString lw)
+        (catch LimitWriter$LimitReachedException _e
+          (str (.getString lw) "…"))))))
+
+#_(limited-result (range 3))
+#_(limited-result (range 1000))
+
 (defn serve-blob [{:keys [uri query-string]}]
   (let [blob->result (meta @!doc)
         blob-id (str/replace uri "/_blob/" "")]
@@ -47,7 +61,7 @@
       {:status 200
        #_#_ ;; leaving this out for now so I can open it directly
        :headers {"Content-Type" "application/edn"}
-       :body (view/->edn (v/fetch (blob->result blob-id) (get-fetch-opts query-string)))}
+       :body (limited-result 1000 (v/fetch (blob->result blob-id) (get-fetch-opts query-string)))}
       {:status 404})))
 
 (defn app [{:as req :keys [uri]}]

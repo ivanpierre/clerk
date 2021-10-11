@@ -55,18 +55,23 @@
 #_(fn->data (fn []))
 #_(fn->data +)
 
-(defn make-printable [x]
+(defn make-val-printable [x]
   (cond-> x
     (var? x) var->data
-    (meta x) (vary-meta #(w/prewalk make-printable %))
+    (meta x) (vary-meta #(w/prewalk make-val-printable %))
     (fn? x) fn->data))
 
 #_(meta (make-printable ^{:f (fn [])} []))
+#_(make-printable "foo")
+
+(defn make-printable [xs]
+  (w/prewalk make-val-printable xs))
+
+#_(make-printable {:f identity :v [(fn [])]})
 
 (defn ->edn [x]
-  (binding [#_#_*print-meta* true
-            *print-namespace-maps* false]
-    (pr-str (w/prewalk make-printable x))))
+  (binding [*print-namespace-maps* false]
+    (pr-str (make-printable x))))
 
 #_(->edn [:vec (with-meta [] {'clojure.core.protocols/datafy (fn [x] x)}) :var #'->edn])
 
@@ -92,7 +97,7 @@
    [:body
     [:div#clerk]
     [:script "let viewer = nextjournal.clerk.sci_viewer
-let doc = " (with-out-str (-> doc ->edn pprint/pprint)) "
+let doc = " (->edn doc) "
 viewer.reset_doc(viewer.read_string(doc))
 viewer.mount(document.getElementById('clerk'))\n"
      (when conn-ws?
