@@ -259,7 +259,7 @@
    {:name :markdown :pred string? :fn markdown/viewer}
    {:name :code :pred string? :fn (comp normalize-viewer code/viewer)}
    {:name :reagent :fn #(r/as-element (cond-> % (fn? %) vector))}
-   {:name :eval! :fn #(*eval-form* %)}
+   {:name :eval! :fn (constantly 'nextjournal.clerk.viewer/set-viewers!)}
    {:name :table :fn (comp normalize-viewer table/viewer)}
    {:name :object :fn #(html (tagged-value "#object" [inspect %]))}
    {:name :file :fn #(html (tagged-value "#file " [inspect %]))}
@@ -622,6 +622,11 @@
   [inspect @!doc])
 
 (defn ^:export reset-doc [new-doc]
+  (doseq [cell (viewer/value @!doc)
+          :when (viewer/registration? cell)
+          :let [form (viewer/value cell)]]
+    (prn :eval form)
+    (*eval-form* form))
   (reset! !doc new-doc))
 
 (rf/reg-sub
