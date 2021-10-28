@@ -77,8 +77,7 @@
        ns (assoc :scope (v/datafy-scope ns))))))
 
 #_(meta (doc->viewer (nextjournal.clerk/eval-file "notebooks/elements.clj")))
-
-(nextjournal.clerk/show! "notebooks/test.clj")
+#_(nextjournal.clerk/show! "notebooks/test.clj")
 
 (defonce ^{:doc "Load dynamic js from shadow or static bundle from cdn."}
   live-js?

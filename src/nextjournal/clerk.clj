@@ -218,7 +218,7 @@
   [viewers x]
   (let [viewers# (->> viewers
                       v/preds->fn+form
-                      (mapv (fn [viewer] (update viewer :fn #(list 'quote %)))))]
+                      (mapv (fn [viewer] (update viewer :fn v/->Form))))]
     `(v/with-viewers* ~viewers# ~x)))
 
 #_(macroexpand '(with-viewers [{:pred number? :fn #(v/html [:div %])}] 1))

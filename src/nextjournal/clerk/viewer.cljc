@@ -5,6 +5,7 @@
                 :cljs [[reagent.ratom :as ratom]]))
   #?(:clj (:import [clojure.lang IFn])))
 
+(defrecord Form [form])
 
 (defrecord Fn+Form [form fn]
   IFn
@@ -20,6 +21,10 @@
 
 #?(:clj
    (defmethod print-method Fn+Form [v ^java.io.Writer w]
+     (.write w (str "#function+ " (pr-str `~(:form v))))))
+
+#?(:clj
+   (defmethod print-method Form [v ^java.io.Writer w]
      (.write w (str "#function+ " (pr-str `~(:form v))))))
 
 #_(binding [*data-readers* {'function+ form->fn+form}]
@@ -265,10 +270,14 @@
 #?(:clj
    (defn maybe->fn+form [x]
      (cond-> x
-       (not (ifn? x)) form->fn+form)))
+       (not (instance? Fn+Form x)) form->fn+form)))
 
-(defn preds->fn+form [viewers]
-  (into [] #?(:clj (map #(update % :pred maybe->fn+form))) viewers))
+(defn process-fns [viewers]
+  (into []
+        #?(:clj (map (fn [viewer] (-> viewer
+                                      (update :pred maybe->fn+form)
+                                      (update :fn ->Form)))))
+        viewers))
 
 (defn closing-paren [{:as _viewer :keys [fn name]}]
   (or (when (list? fn) (-> fn last :close))
@@ -290,9 +299,9 @@
 (defn describe
   "Returns a description of a given value `xs`."
   ([xs]
-   (describe {:viewers (get-viewers *ns* (viewers xs))} xs))
+   (describe {:viewers (process-fns (get-viewers *ns* (viewers xs)))} xs))
   ([opts xs]
-   (let [{:as opts :keys [viewers path]} (merge {:path []} (update opts :viewers preds->fn+form))
+   (let [{:as opts :keys [viewers path]} (merge {:path []} opts)
          {:as viewer :keys [fetch-opts]} (try (select-viewer xs viewers)
                                               (catch #?(:clj Exception :cljs js/Error) _ex
                                                 nil))
