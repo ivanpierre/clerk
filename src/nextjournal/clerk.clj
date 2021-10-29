@@ -217,7 +217,7 @@
 (defmacro with-viewers
   [viewers x]
   (let [viewers# (->> viewers
-                      v/preds->fn+form
+                      v/process-fns
                       (mapv (fn [viewer] (update viewer :fn v/->Form))))]
     `(v/with-viewers* ~viewers# ~x)))
 
