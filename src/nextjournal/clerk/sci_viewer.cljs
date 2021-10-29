@@ -182,11 +182,10 @@
             (into [:<> close] #_(viewer/closing-parens path->info path))]])))
 
 (defn elision-viewer [{:as fetch-opts :keys [remaining unbounded?]} {:keys [fetch-fn]}]
-  (assert (fn? fetch-fn) "fetch-fn must be `fn?`")
-  (html [:<> " "
-         [:span.bg-gray-200.hover:bg-gray-200.cursor-pointer.sans-serif.relative.whitespace-nowrap
-          {:style {:border-radius 2 :padding "1px 3px" :font-size 11 :top -1}
-           :on-click #(fetch-fn fetch-opts)} remaining (when unbounded? "+") " more…"]]))
+  #_(assert (fn? fetch-fn) "fetch-fn must be `fn?`")
+  (html [:span.bg-gray-200.hover:bg-gray-200.cursor-pointer.sans-serif.relative.whitespace-nowrap
+         {:style {:border-radius 2 :padding "1px 3px" :font-size 11 :top -1}
+          :on-click #(fetch-fn fetch-opts)} remaining (when unbounded? "+") " more…"]))
 
 (defn map-viewer [xs {:as opts :keys [!expanded-at path] :or {path []}}]
   (let [expanded? (expanded-path? opts)
@@ -606,7 +605,7 @@
 (dc/defcard blob-in-process-fetch-single
   []
   [:div
-   (when-let [value @(rf/subscribe [::blobs :vector-nested-taco])]
+   (when-let [value @(rf/subscribe [::blobs :recursive-range])]
      [inspect value])]
   {::blobs {:vector (vec (range 3))
             :vector-nested [1 [2] 3]
