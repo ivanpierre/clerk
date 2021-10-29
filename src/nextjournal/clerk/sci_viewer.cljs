@@ -154,15 +154,18 @@
 
 (defn expanded-path? [{:as opts :keys [!expanded-at path]}]
   (and (expandable-path? opts)
-       (some-> !expanded-at deref (get path))))
+       (get @!expanded-at path)))
 
 (defn inspect-children [opts]
   ;; TODO: move update function onto viewer
-  (map-indexed (fn [idx x] (inspect-desc (update opts :path conj idx) x))))
+  ;; TODO: consider if we still need this
+  (map-indexed (fn [idx x]
+                 (inspect-desc (update opts :path conj idx) (cond-> x (and (map? x) (map? opts)) (merge (select-keys opts [:!expanded-at #_ :fetch-fn])))))))
 
-(defn coll-viewer [{:keys [open close]} xs {:as opts :keys [!expanded-at path] :or {path []}}]
+(defn coll-viewer [{:keys [open close]} xs {:as opts :keys [!expanded-at path] #_#_ :or {path []}}]
   (let [expanded? (expanded-path? opts)
         expandable? (expandable-path? opts)]
+    #_(js/console.log :coll-viewer xs :opts opts)
     (html [:span.inspected-value.whitespace-nowrap
            {:class (when expanded? "inline-flex")}
            [:span
@@ -279,8 +282,7 @@
 (declare default-viewers)
 
 (defn render-with-viewer [{:as opts :keys [viewers]} viewer value]
-  (js/console.log :render-with-viewer #_opts viewer value)
-  (js/console.log :opts opts)
+  #_(js/console.log :render-with-viewer {:value value :viewer viewer :opts opts})
   (cond (map? viewer)
         (render-with-viewer opts (:fn viewer) value)
         (keyword? viewer)
@@ -300,14 +302,12 @@
 
 (defn inspect-desc
   ([desc]
-   (js/console.log :inspect-desc-root desc)
    [inspect-desc {:recursion-counter 0 :recursion-limit 10} desc])
-  ([{:as opts :keys [recursion-counter recursion-limit]} {:as _desc :keys [value viewer path]}]
+  ([opts {:as desc :keys [value viewer path]}]
    (let [value (viewer/value value)]
-     (js/console.log :inspect-desc recursion-counter :value value :path path :viewer viewer :type-val (type value) :react? (react/isValidElement value) :type (type viewer))
      (or (when (react/isValidElement value) value)
-         (when (and (or (not recursion-limit) (< recursion-counter 10)) viewer)
-           (let [result (render-with-viewer opts viewer value)
+         (when viewer
+           (let [result (render-with-viewer desc viewer value)
                  viewer (viewer/viewer result)
                  value (viewer/value result)]
              (if (= :hiccup viewer)
@@ -320,13 +320,15 @@
   (.resolve js/Promise (viewer/describe value opts)))
 
 (defn inspect [value]
-  (r/with-let [!desc (r/atom (viewer/describe value))]
-    (inspect-desc {:fetch-fn (fn [fetch-opts]
+  (r/with-let [!expanded-at (r/atom {})
+               !desc (r/atom (assoc (viewer/describe value) :!expanded-at !expanded-at))]
+    [inspect-desc {:!expanded-at !expanded-at
+                   :fetch-fn (fn [fetch-opts]
                                (js/console.log :fetch-opts fetch-opts)
                                (.then (in-process-fetch value fetch-opts)
                                       (fn [more]
                                         (swap! !desc viewer/merge-descriptions more))))}
-                  @!desc)))
+     @!desc]))
 
 (defn error-viewer [e]
   (viewer/with-viewer* :code (pr-str e)))
@@ -604,9 +606,9 @@
 (dc/defcard blob-in-process-fetch-single
   []
   [:div
-   (when-let [xs @(rf/subscribe [::blobs :recursive-range])]
-     [inspect xs])]
-  {::blobs {:vector (vec (range 30))
+   (when-let [value @(rf/subscribe [::blobs :vector-nested-taco])]
+     [inspect value])]
+  {::blobs {:vector (vec (range 3))
             :vector-nested [1 [2] 3]
             :vector-nested-taco '[l [l [l [l [🌮] r] r] r] r]
             :list (range 30)

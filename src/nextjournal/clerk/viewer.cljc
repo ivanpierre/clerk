@@ -236,7 +236,7 @@
                                                   nil))
            fetch-opts (merge fetch-opts (select-keys opts [:offset]))
            xs (value xs)]
-       (prn :xs xs :type (type xs) :path path :current-path current-path)
+       #_(prn :xs xs :type (type xs) :path path :current-path current-path)
        (cond (< (count current-path)
                 (count path))
              (let [idx (first (drop (count current-path) path))]
