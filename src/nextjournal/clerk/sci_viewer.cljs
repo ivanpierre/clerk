@@ -604,12 +604,13 @@
 (dc/defcard blob-in-process-fetch-single
   []
   [:div
-   (when-let [xs @(rf/subscribe [::blobs :vector])]
+   (when-let [xs @(rf/subscribe [::blobs :recursive-range])]
      [inspect xs])]
   {::blobs {:vector (vec (range 30))
             :vector-nested [1 [2] 3]
             :vector-nested-taco '[l [l [l [l [🌮] r] r] r] r]
             :list (range 30)
+            :recursive-range (map range (range 7))
             :map-1 {:hello :world}
             :map-vec-val {:hello [:world]}
             :map (zipmap (range 30) (range 30))}})

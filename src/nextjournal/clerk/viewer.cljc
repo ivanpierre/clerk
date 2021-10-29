@@ -98,8 +98,8 @@
    {:pred map-entry? :name :map-entry :fn '(fn [xs opts] (v/html (into [:<>] (comp (v/inspect-children opts) (interpose " ")) xs)))}
    {:pred vector? :fn '(partial v/coll-viewer {:open "[" :close "]"}) :fetch-opts {:n 20}}
    {:pred set? :fn '(partial v/coll-viewer {:open "#{" :close "}"}) :fetch-opts {:n 20}}
-   {:pred (some-fn list? sequential?) :fn '(partial v/coll-viewer {:open "(" :close ")"})  :fetch-opts {:n 20}}
-   {:pred map? :name :map :fn '(partial v/map-viewer) :fetch-opts {:n 20}}
+   {:pred (some-fn list? sequential?) :fn '(partial v/coll-viewer {:open "(" :close ")"})  :fetch-opts {:n 5}}
+   {:pred map? :name :map :fn '(partial v/map-viewer) :fetch-opts {:n 3}}
    {:pred uuid? :fn '(fn [x] (v/html (v/tagged-value "#uuid" [:span.syntax-string.inspected-value "\"" (str x) "\""])))}
    {:pred inst? :fn '(fn [x] (v/html (v/tagged-value "#inst" [:span.syntax-string.inspected-value "\"" (str x) "\""])))}])
 
@@ -262,7 +262,9 @@
                                  (bounded-count-opts (:n fetch-opts) xs))
                    children (into []
                                   (comp (drop+take-xf fetch-opts)
-                                        (map-indexed (fn [i x] (describe x (update opts :path conj (+ i offset)) (conj current-path i))))
+                                        (map-indexed (fn [i x] (describe x (-> opts
+                                                                               (dissoc :offset)
+                                                                               (update :path conj (+ i offset))) (conj current-path i))))
                                         (remove nil?))
                                   (ensure-sorted xs))]
                (cond-> (merge {:path path} count-opts)
@@ -271,23 +273,25 @@
                                                     offset (or (-> children peek :path peek) 0)]
                                                 (cond-> children
 
-                                                  (or (not count) (< offset (dec count)))
+                                                  (or (not count) (< (inc offset) count))
                                                   (conj {:viewer :elision
                                                          #_#_:path (conj path offset)
-                                                         :value (cond-> {:offset offset :count count :path path}
+                                                         :value (cond-> {:offset (inc offset) :count count :path path}
                                                                   count (assoc :remaining (- count (inc offset))))}))))))
 
              :else ;; leaf value
              (cond-> {:path path :value xs} viewer (assoc :viewer viewer))))))
 
-  (describe [(range 30)])
+
 
   )
 
+(count (range 7))
+
+(describe (mapv range (range 6)))
 
 (comment
   (describe 123)
-  (describe complex-thing)
   (-> (describe (range 100)) :value peek)
   (describe {:hello [1 2 3]})
   (describe {:one [1 2 3] 1 2 3 4})
