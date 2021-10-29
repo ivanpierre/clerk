@@ -280,7 +280,7 @@
              :else ;; leaf value
              (cond-> {:path path :value xs} viewer (assoc :viewer viewer))))))
 
-
+  (describe [(range 30)])
 
   )
 
@@ -300,15 +300,29 @@
   (describe (with-viewer* :html [:h1 "hi"]))
   (describe {1 [2]}))
 
-(defn merge-descriptions [root more]
-  (update root :value (fn [value]
-                        (into (pop value) (:value more)))))
+(defn path-to-value [path]
+  (conj (interleave path (repeat :value)) :value))
 
-(let [value (range 30)
-      desc (describe value)
-      fetch-opts (-> desc :value peek :value)
-      more (describe value fetch-opts)]
-  (merge-descriptions desc more))
+(defn merge-descriptions [root more]
+  (update-in root (path-to-value (:path more)) (fn [value]
+                                                 (into (pop value) (:value more)))))
+
+(comment
+  (let [value (range 30)
+        desc (describe value)
+        path []
+        elision (peek (get-in desc (path-to-value path)))
+        more (describe value (:value elision))]
+    (merge-descriptions desc more))
+
+
+  (let [value [(range 30)]
+        desc (describe value)
+        path [0]
+        elision (peek (get-in desc (path-to-value path)))
+        more (describe value (:value elision))]
+    (merge-descriptions desc more)))
+
 
 (defn assign-closing-parens
   ([node] (assign-closing-parens {} node))
