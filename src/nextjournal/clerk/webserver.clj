@@ -17,6 +17,8 @@
 #_(view/doc->viewer @!doc)
 #_(reset! !doc help-doc)
 
+(nextjournal.clerk.viewer/describe (view/doc->viewer @!doc))
+
 (defn broadcast! [msg]
   (doseq [ch @!clients]
     (httpkit/send! ch (view/->edn msg))))

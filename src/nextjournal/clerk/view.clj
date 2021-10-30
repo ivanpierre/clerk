@@ -41,8 +41,9 @@
 #_(->edn [:vec (with-meta [] {'clojure.core.protocols/datafy (fn [x] x)}) :var #'->edn])
 
 (defn described-result [ns {:keys [result blob-id]}]
-  (v/with-viewer* :clerk/result
-    (-> (v/describe {:viewers (v/get-viewers ns (v/viewers result))} result)
+  (v/with-viewer* :clerk/result {:blob-id blob-id}
+    #_
+    (-> (v/describe result {:viewers (v/get-viewers ns (v/viewers result))})
         (assoc :blob-id blob-id))))
 
 #_(v/with-viewers (range 3) [{:pred number? :fn '(fn [x] (v/html [:div.inline-block {:style {:width 16 :height 16}
@@ -65,12 +66,17 @@
                                :markdown [(v/md text)]
                                :code (cond-> [(v/code text)]
                                        (contains? x :result)
-                                       (conj (if (and (not inline-results?)
-                                                      (map? result)
-                                                      (contains? result :result)
-                                                      (contains? result :blob-id)
-                                                      (not (v/registration? (:result result))))
+                                       (conj (cond
+                                               (v/registration? (:result result))
+                                               (:result result)
+
+                                               (and (not inline-results?)
+                                                    (map? result)
+                                                    (contains? result :result)
+                                                    (contains? result :blob-id))
                                                (described-result ns result)
+
+                                               :else
                                                (inline-result (:result result))))))))
                    doc)
        true v/notebook
