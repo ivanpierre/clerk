@@ -14,10 +14,12 @@
   (#?(:clj invoke :cljs -invoke) [this x y]
     ((:fn this) x y)))
 
-#?(:clj
-   (defn form->fn+form
-     [form]
-     (map->Fn+Form {:form form :fn (eval form)})))
+(defn form->fn+form
+  #?(:clj
+     ([form]
+      (map->Fn+Form {:form form :fn (eval form)})))
+  ([eval form]
+   (map->Fn+Form {:form form :fn (eval form)})))
 
 #?(:clj
    (defmethod print-method Fn+Form [v ^java.io.Writer w]

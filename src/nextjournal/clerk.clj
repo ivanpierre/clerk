@@ -216,9 +216,7 @@
 
 (defmacro with-viewers
   [viewers x]
-  (let [viewers# (->> viewers
-                      v/process-fns
-                      (mapv (fn [viewer] (update viewer :fn v/->Form))))]
+  (let [viewers# (v/process-fns viewers)]
     `(v/with-viewers* ~viewers# ~x)))
 
 #_(macroexpand '(with-viewers [{:pred number? :fn #(v/html [:div %])}] 1))

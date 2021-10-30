@@ -1,5 +1,6 @@
 (ns nextjournal.clerk.sci-viewer
   (:require [applied-science.js-interop :as j]
+            [devtools]
             [cljs.reader]
             [clojure.string :as str]
             [edamame.core :as edamame]
@@ -106,7 +107,7 @@
                            :read-cond :allow
                            :readers {'file (partial with-viewer :file)
                                      'object (partial with-viewer :object)
-                                     'function+ eval-form}
+                                     'function+ (partial viewer/form->fn+form eval-form)}
                            :features #{:clj}}))
 
 (defn opts->query [opts]
@@ -250,8 +251,7 @@
 (declare default-viewers)
 
 (defn render-with-viewer [opts viewer value]
-  (js/console.log :render-with-viewer {:value value :viewer viewer :opts opts})
-  (js/console.log :viewer viewer)
+  #_(js/console.log :render-with-viewer {:value value :viewer viewer :opts opts})
   (cond (fn? viewer)
         (viewer value opts)
 
@@ -259,18 +259,13 @@
         (render-with-viewer opts (:fn viewer) value)
 
         (keyword? viewer)
-        (let [_ (js/console.log :KEYWORD viewer)
-              na (into {} (map (juxt :name identity)) named-viewers)]
-          (js/console.log :na na)
-          (if-let [{:as v render-fn :fn :keys [fetch-opts]} (get ;; TODO change back to `viewers`
-                                                             (into {} (map (juxt :name identity)) named-viewers) viewer)]
-            (do
-              (js/console.log :v v :render render-fn)
-              (if-not render-fn
-                (html (error-badge "no render function for viewer named " (str viewer)))
-                (let [render-fn (cond-> render-fn (not (fn? render-fn)) *eval-form*)]
-                  (render-fn value (assoc opts :fetch-opts fetch-opts)))))
-            (html (error-badge "cannot find viewer named " (str viewer)))))
+        (if-let [{render-fn :fn :keys [fetch-opts]} (get ;; TODO change back to `viewers`
+                                                     (into {} (map (juxt :name identity)) named-viewers) viewer)]
+          (if-not render-fn
+            (html (error-badge "no render function for viewer named " (str viewer)))
+            (let [render-fn (cond-> render-fn (not (fn? render-fn)) *eval-form*)]
+              (render-fn value (assoc opts :fetch-opts fetch-opts))))
+          (html (error-badge "cannot find viewer named " (str viewer))))
 
         (or (list? viewer) (symbol? viewer))
         (render-with-viewer opts (*eval-form* viewer) value)))
@@ -280,20 +275,16 @@
 (defn inspect
   ([x]
    (r/with-let [!expanded-at (r/atom {})]
-     (js/console.log :inspect x :v (viewer/viewer x))
      [view-context/provide {:!expanded-at !expanded-at}
       [inspect {} x]]))
   ([{:as opts :keys [viewers]} x]
    (let [value (viewer/value x)
          {:as opts :keys [viewers]} (assoc opts :viewers (vec (concat (viewer/viewers x) viewers)))
          all-viewers (viewer/get-viewers (:scope @!doc) viewers)]
-     (js/console.log :ATOMVIEW viewer/!viewers)
-     (js/console.log :VAL value :VIEWER (viewer/viewer x) :PRED (and (map? (viewer/viewer x)) (contains? (viewer/viewer x) :fn)))
      (or (when (react/isValidElement value) value)
+         ;; TODO find option to disable client-side viewer selection
          (when-let [viewer (or (viewer/viewer x)
-                               (do
-                                 (js/console.warn :client-side-viewer-selection)
-                                 (viewer/select-viewer value all-viewers)))]
+                               (viewer/select-viewer value all-viewers))]
            (let [result (render-with-viewer (assoc opts :viewers all-viewers) viewer value)]
              (if (= :hiccup (viewer/viewer result))
                (r/as-element (viewer/value result))
@@ -311,7 +302,6 @@
                      (unreadable-edn %))))))
 
 (defn inspect-result [result _opts]
-  (js/console.log :INSPECT_RES result)
   (html (r/with-let [!desc (r/atom nil)
                      fetch-fn (fn [opts]
                                 (.then (fetch! result opts)
@@ -319,7 +309,6 @@
                                          (swap! !desc viewer/merge-descriptions more))))
                      _ (.then (fetch! result {})
                               (fn [desc] (reset! !desc desc)))]
-          (js/console.log :clerk/result result :value (viewer/value result))
           [view-context/provide {:fetch-fn fetch-fn}
            (when (seq @!desc)
              [inspect @!desc])])))
@@ -496,11 +485,9 @@
   [inspect @!doc])
 
 (defn ^:export reset-doc [new-doc]
-  (js/console.log :new new-doc)
   (doseq [cell (viewer/value @!doc)
           :when (viewer/registration? cell)
           :let [form (viewer/value cell)]]
-    (prn :BEFORE-eval form)
     (*eval-form* form))
   (reset! !doc new-doc))
 
@@ -711,7 +698,6 @@ black")}])}
 
 
 (defn eval-form [f]
-  (js/console.log :eval f)
   (sci/eval-form ctx f))
 
 (set! *eval-form* eval-form)
