@@ -233,7 +233,7 @@
    (describe xs (merge {:path [] :viewers (process-fns (get-viewers *ns* (viewers xs)))} opts) []))
   ([xs opts current-path]
    (let [{:as opts :keys [viewers path offset]} (merge {:offset 0} opts)
-         {:as viewer :keys [fetch-opts]} (try (select-viewer xs viewers)
+         {:as viewer :keys [fetch-opts]} (try (select-viewer xs viewers) ;; TODO: respect `viewers` on `xs`
                                               (catch #?(:clj Exception :cljs js/Error) _ex
                                                 nil))
          fetch-opts (merge fetch-opts (select-keys opts [:offset]))

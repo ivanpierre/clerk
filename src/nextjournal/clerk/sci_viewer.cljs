@@ -255,7 +255,7 @@
   (cond (fn? viewer)
         (viewer value opts)
 
-        (and (map? viewer) (contains? viewer :fn))
+        (map? viewer)
         (render-with-viewer opts (:fn viewer) value)
 
         (keyword? viewer)
@@ -282,17 +282,23 @@
    (r/with-let [!expanded-at (r/atom {})]
      (js/console.log :inspect x :v (viewer/viewer x))
      [view-context/provide {:!expanded-at !expanded-at}
-      [inspect {:!expanded-at !expanded-at} x]]))
-  ([ctx x]
-   (let [value (viewer/value x)]
+      [inspect {} x]]))
+  ([{:as opts :keys [viewers]} x]
+   (let [value (viewer/value x)
+         {:as opts :keys [viewers]} (assoc opts :viewers (vec (concat (viewer/viewers x) viewers)))
+         all-viewers (viewer/get-viewers (:scope @!doc) viewers)]
+     (js/console.log :ATOMVIEW viewer/!viewers)
+     (js/console.log :VAL value :VIEWER (viewer/viewer x) :PRED (and (map? (viewer/viewer x)) (contains? (viewer/viewer x) :fn)))
      (or (when (react/isValidElement value) value)
          (when-let [viewer (or (viewer/viewer x)
-                               (viewer/select-viewer value))] ;; TODO: pass viewers
-           (let [result (render-with-viewer (guard x viewer/wrapped-value?) viewer value)]
+                               (do
+                                 (js/console.warn :client-side-viewer-selection)
+                                 (viewer/select-viewer value all-viewers)))]
+           (let [result (render-with-viewer (assoc opts :viewers all-viewers) viewer value)]
              (if (= :hiccup (viewer/viewer result))
                (r/as-element (viewer/value result))
                ;; TODO: pass `viewers` down
-               (inspect ctx result))))))))
+               (inspect opts result))))))))
 
 
 (defn fetch! [{:keys [blob-id]} opts]
