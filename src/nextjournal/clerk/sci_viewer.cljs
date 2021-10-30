@@ -654,7 +654,9 @@ black")}])}
    {:name :mathjax :pred string? :fn (comp normalize-viewer mathjax/viewer)}
    {:name :html :pred string? :fn #(html [:div {:dangerouslySetInnerHTML {:__html %}}])}
    {:name :hiccup :fn (fn [x _] (r/as-element x))}
-   {:name :plotly :pred map? :fn (comp normalize-viewer plotly/viewer)}
+   {:name :plotly :pred map? :fn (fn [x _]
+                                   (js/console.log :PLOT plotly :pr (pr-str x))
+                                   (normalize-viewer (plotly/viewer x)))}
    {:name :vega-lite :pred map? :fn (comp normalize-viewer vega-lite/viewer)}
    {:name :markdown :pred string? :fn markdown/viewer}
    {:name :code :pred string? :fn (comp normalize-viewer code/viewer)}
