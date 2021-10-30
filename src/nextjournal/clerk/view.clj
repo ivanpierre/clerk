@@ -49,10 +49,10 @@
 #_(v/with-viewers (range 3) [{:pred number? :fn '(fn [x] (v/html [:div.inline-block {:style {:width 16 :height 16}
                                                                                      :class (if (pos? x) "bg-black" "bg-white border-solid border-2 border-black")}]))}])
 
-(defn inline-result [result]
+(defn inline-result [ns {:keys [result]}]
   (v/with-viewer* :clerk/inline-result
     (try
-      {:edn (->edn result)}
+      {:edn (->edn (v/describe result {:viewers (v/get-viewers ns (v/viewers result))}))}
       (catch Exception _
         {:string (pr-str result)}))))
 
@@ -77,7 +77,7 @@
                                                (described-result ns result)
 
                                                :else
-                                               (inline-result (:result result))))))))
+                                               (inline-result ns result)))))))
                    doc)
        true v/notebook
        ns (assoc :scope (v/datafy-scope ns))))))

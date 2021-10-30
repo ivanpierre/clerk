@@ -170,10 +170,11 @@
 (defn elision-viewer [{:as fetch-opts :keys [remaining unbounded?]} _]
   (html [view-context/consume :fetch-fn
          (fn [fetch-fn]
-           (assert (fn? fetch-fn) "fetch-fn must be `fn?`")
-           [:span.bg-gray-200.hover:bg-gray-200.cursor-pointer.sans-serif.relative.whitespace-nowrap
+           [:span.hover:bg-gray-200.cursor-pointer.sans-serif.relative.whitespace-nowrap
             {:style {:border-radius 2 :padding "1px 3px" :font-size 11 :top -1}
-             :on-click #(fetch-fn fetch-opts)} remaining (when unbounded? "+") " more…"])]))
+             :class (if (fn? fetch-fn) "bg-indigo-200" "bg-gray-200")
+             :on-click #(when (fn? fetch-fn)
+                          (fetch-fn fetch-opts))} remaining (when unbounded? "+") " more…"])]))
 
 (defn map-viewer [xs {:as opts :keys [path] :or {path []}}]
   (html

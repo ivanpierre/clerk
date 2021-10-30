@@ -240,7 +240,7 @@
                                                 nil))
          fetch-opts (merge fetch-opts (select-keys opts [:offset]))
          xs (value xs)]
-     (prn :xs xs :type (type xs) :path path :current-path current-path)
+     #_(prn :xs xs :type (type xs) :path path :current-path current-path)
      (merge {:path path}
             (with-viewer* viewer
               (cond (< (count current-path)
