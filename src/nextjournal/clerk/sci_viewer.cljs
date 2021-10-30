@@ -1,8 +1,8 @@
 (ns nextjournal.clerk.sci-viewer
   (:require [applied-science.js-interop :as j]
-            [devtools]
             [cljs.reader]
             [clojure.string :as str]
+            [devtools]
             [edamame.core :as edamame]
             [goog.object]
             [goog.string :as gstring]
@@ -132,7 +132,7 @@
 (defn toggle-expanded [!expanded-at path event]
   (.preventDefault event)
   (.stopPropagation event)
-  (js/console.log :toggle-expanded path (swap! !expanded-at update path not)))
+  (swap! !expanded-at update path not))
 
 (defn expandable? [xs]
   (< 1 (count xs)))
@@ -285,11 +285,7 @@
          ;; TODO find option to disable client-side viewer selection
          (when-let [viewer (or (viewer/viewer x)
                                (viewer/select-viewer value all-viewers))]
-           (let [result (render-with-viewer (assoc opts :viewers all-viewers) viewer value)]
-             (if (= :hiccup (viewer/viewer result))
-               (r/as-element (viewer/value result))
-               ;; TODO: pass `viewers` down
-               (inspect opts result))))))))
+           (inspect opts (render-with-viewer (assoc opts :viewers all-viewers) viewer value)))))))
 
 
 (defn fetch! [{:keys [blob-id]} opts]
@@ -657,9 +653,7 @@ black")}])}
    {:name :latex :pred string? :fn #(html (katex/to-html-string %))}
    {:name :mathjax :pred string? :fn (comp normalize-viewer mathjax/viewer)}
    {:name :html :pred string? :fn #(html [:div {:dangerouslySetInnerHTML {:__html %}}])}
-   {:name :hiccup :fn (fn [x _]
-                        (js/console.log :hiccup x)
-                        (r/as-element x))}
+   {:name :hiccup :fn (fn [x _] (r/as-element x))}
    {:name :plotly :pred map? :fn (comp normalize-viewer plotly/viewer)}
    {:name :vega-lite :pred map? :fn (comp normalize-viewer vega-lite/viewer)}
    {:name :markdown :pred string? :fn markdown/viewer}
