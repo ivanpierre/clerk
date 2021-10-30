@@ -15,6 +15,7 @@
             [nextjournal.viewer.plotly :as plotly]
             [nextjournal.viewer.table :as table]
             [nextjournal.viewer.vega-lite :as vega-lite]
+            [nextjournal.view.context :as view-context]
             [re-frame.context :as rf]
             [react :as react]
             [reagent.core :as r]
@@ -130,14 +131,15 @@
                      (unreadable-edn %))))))
 
 (defn result [desc opts]
-  (html [inspect-lazy (-> desc
-                          (assoc :fetch-fn (partial fetch! desc))) opts]))
+  (html
+   (r/with-let [!expanded-at (r/atom {})]
+     [view-context/provide {:fetch-fn (partial fetch! desc)}
+      [inspect-desc {:!expanded-at !expanded-at} desc]])))
 
-(declare lazy-inspect-in-process)
 (defn inline-result [{:keys [edn string]} _opts]
   (if edn
     (try
-      (html [lazy-inspect-in-process (read-string edn)])
+      (html [inspect (read-string edn)])
       (catch js/Error _e
         (unreadable-edn edn)))
     (unreadable-edn string)))
@@ -182,10 +184,13 @@
             (into [:<> close] #_(viewer/closing-parens path->info path))]])))
 
 (defn elision-viewer [{:as fetch-opts :keys [remaining unbounded?]} {:keys [fetch-fn]}]
-  #_(assert (fn? fetch-fn) "fetch-fn must be `fn?`")
-  (html [:span.bg-gray-200.hover:bg-gray-200.cursor-pointer.sans-serif.relative.whitespace-nowrap
-         {:style {:border-radius 2 :padding "1px 3px" :font-size 11 :top -1}
-          :on-click #(fetch-fn fetch-opts)} remaining (when unbounded? "+") " more…"]))
+  (html
+   [view-context/consume :fetch-fn
+    (fn [fetch-fn]
+      (assert (fn? fetch-fn) "fetch-fn must be `fn?`")
+      [:span.bg-gray-200.hover:bg-gray-200.cursor-pointer.sans-serif.relative.whitespace-nowrap
+       {:style {:border-radius 2 :padding "1px 3px" :font-size 11 :top -1}
+        :on-click #(fetch-fn fetch-opts)} remaining (when unbounded? "+") " more…"])]))
 
 (defn map-viewer [xs {:as opts :keys [!expanded-at path] :or {path []}}]
   (let [expanded? (expanded-path? opts)
@@ -321,13 +326,12 @@
 (defn inspect [value]
   (r/with-let [!expanded-at (r/atom {})
                !desc (r/atom (assoc (viewer/describe value) :!expanded-at !expanded-at))]
-    [inspect-desc {:!expanded-at !expanded-at
-                   :fetch-fn (fn [fetch-opts]
-                               (js/console.log :fetch-opts fetch-opts)
-                               (.then (in-process-fetch value fetch-opts)
-                                      (fn [more]
-                                        (swap! !desc viewer/merge-descriptions more))))}
-     @!desc]))
+    [view-context/provide {:fetch-fn (fn [fetch-opts]
+                                       (js/console.log :fetch-opts fetch-opts)
+                                       (.then (in-process-fetch value fetch-opts)
+                                              (fn [more]
+                                                (swap! !desc viewer/merge-descriptions more))))}
+     [inspect-desc {:!expanded-at !expanded-at} @!desc]]))
 
 (defn error-viewer [e]
   (viewer/with-viewer* :code (pr-str e)))
@@ -599,10 +603,7 @@
    (cond-> (get db blob-key)
      id (get id))))
 
-(defn lazy-inspect-in-process [xs]
-  [inspect-lazy (viewer/describe xs)])
-
-(dc/defcard blob-in-process-fetch-single
+(dc/defcard inspect
   []
   [:div
    (when-let [value @(rf/subscribe [::blobs :recursive-range])]
@@ -616,14 +617,14 @@
             :map-vec-val {:hello [:world]}
             :map (zipmap (range 30) (range 30))}})
 
-(dc/defcard blob-in-process-fetch
-  "Dev affordance that performs fetch in-process."
+(dc/defcard inspect-more
+  "In process inspect based on description."
   []
   [:div
    (map (fn [[blob-id xs]]
           ^{:key blob-id}
           [:div
-           [lazy-inspect-in-process xs]])
+           [inspect xs]])
         @(rf/subscribe [::blobs]))]
   {::blobs (hash-map (random-uuid) (vec (range 30))
                      (random-uuid) (range 40)
@@ -787,7 +788,7 @@ black")}])}
       [:div.mb-4.overflow-x-hidden
        [inspect x]]
       [:div.mb-4.overflow-x-hidden
-       [lazy-inspect-in-process x]]
+       [inspect x]]
       [:div.mb-4.overflow-x-hidden
        [inspect x {:path []
                    :expanded-at (r/atom {[] true
