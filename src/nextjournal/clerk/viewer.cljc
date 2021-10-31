@@ -18,8 +18,8 @@
   #?(:clj
      ([form]
       (map->Fn+Form {:form form :fn (eval form)})))
-  ([eval form]
-   (map->Fn+Form {:form form :fn (eval form)})))
+  ([eval-fn form]
+   (map->Fn+Form {:form form :fn (eval-fn form)})))
 
 #?(:clj
    (defmethod print-method Fn+Form [v ^java.io.Writer w]
