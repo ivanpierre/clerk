@@ -276,11 +276,18 @@
         (map #(str "notebooks/" % ".clj"))
         ["hello"
          "rule_30"
+         "elements"
          "onwards"
+         "how_clerk_works"
+         "pagination"
+         "paren_soup"
+         "recursive"
+         "viewer_api"
          "viewers/html"
          "viewers/markdown"
          "viewers/plotly"
          "viewers/table"
+         "viewers/tex"
          "viewers/vega"]))
 
 
