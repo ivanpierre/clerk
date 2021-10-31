@@ -310,7 +310,8 @@
                               (fn [desc] (reset! !desc desc)))]
           [view-context/provide {:fetch-fn fetch-fn}
            (when (seq @!desc)
-             [inspect @!desc])])))
+             [error-boundary
+              [inspect @!desc]])])))
 
 (defn in-process-fetch [value opts]
   (.resolve js/Promise (viewer/describe value opts)))
