@@ -63,7 +63,7 @@
 
 (defn js-object-viewer [x {:as opts :keys [!expanded-at path]}]
   (let [x' (obj->clj x)
-        expanded? (some-> !expanded-at deref (get path))]
+        expanded? (@!expanded-at path)]
     (html [:span.inspected-value.whitespace-nowrap "#js {"
            (into [:<>]
                  (comp (map-indexed (fn [idx k]
@@ -137,9 +137,6 @@
 (defn expandable? [xs]
   (< 1 (count xs)))
 
-(defn expanded? [!expanded-at path]
-  (get @!expanded-at path))
-
 (defn inspect-children [opts]
   ;; TODO: move update function onto viewer
   (map-indexed (fn [idx x]
@@ -151,7 +148,7 @@
    [view-context/consume
     :!expanded-at
     (fn [!expanded-at]
-      (let [expanded? (expanded? !expanded-at path)]
+      (let [expanded? (@!expanded-at path)]
         [:span.inspected-value.whitespace-nowrap
          {:class (when expanded? "inline-flex")}
          [:span
@@ -183,7 +180,7 @@
    [view-context/consume
     :!expanded-at
     (fn [!expanded-at]
-      (let [expanded? (expanded? !expanded-at path)]
+      (let [expanded? (@!expanded-at path)]
         [:span.inspected-value.whitespace-nowrap
          [:span.bg-opacity-70
           (when (expandable? xs)
