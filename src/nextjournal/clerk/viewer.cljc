@@ -118,6 +118,7 @@
     :mathjax
     :table
     :latex
+    :object
     :reagent
     :vega-lite
     :clerk/notebook

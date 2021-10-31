@@ -137,6 +137,7 @@
 (defn expandable? [xs]
   (< 1 (count xs)))
 
+
 (defn inspect-children [opts]
   ;; TODO: move update function onto viewer
   (map-indexed (fn [idx x]
@@ -201,8 +202,7 @@
 
 (defn tagged-value [tag value]
   [:span.inspected-value.whitespace-nowrap
-   [:span.syntax-tag tag]
-   value])
+   [:span.syntax-tag tag] value])
 
 (def ^:dynamic *eval-form*)
 
@@ -235,23 +235,24 @@
     [:path {:fill-rule "evenodd" :d "M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" :clip-rule "evenodd"}]]
    (into [:div.ml-2.font-bold] content)])
 
-(defn error-boundary [& children]
-  (let [error (r/atom nil)]
+(defn error-boundary [& _]
+  (let [!error (r/atom nil)]
     (r/create-class
-     {:constructor (fn [this props])
-      :component-did-catch (fn [this e info])
+     {:constructor (fn [_ _])
+      :component-did-catch (fn [_ e _info]
+                             (reset! !error e))
       :get-derived-state-from-error (fn [e]
-                                      (reset! error e)
+                                      (reset! !error e)
                                       #js {})
       :reagent-render (fn [& children]
-                        (if @error
-                          (error-badge "rendering error")
+                        (if @!error
+                          (error-badge "rendering error") ;; TODO: show error
                           (into [:<>] children)))})))
 
 (declare default-viewers)
 
 (defn render-with-viewer [opts viewer value]
-  #_(js/console.log :render-with-viewer {:value value :viewer viewer :opts opts})
+  #_(prn :render-with-viewer {:value value :viewer viewer #_#_ :opts opts})
   (cond (fn? viewer)
         (viewer value opts)
 
@@ -655,9 +656,7 @@ black")}])}
    {:name :mathjax :pred string? :fn (comp normalize-viewer mathjax/viewer)}
    {:name :html :pred string? :fn #(html [:div {:dangerouslySetInnerHTML {:__html %}}])}
    {:name :hiccup :fn (fn [x _] (r/as-element x))}
-   {:name :plotly :pred map? :fn (fn [x _]
-                                   (js/console.log :PLOT plotly :pr (pr-str x))
-                                   (normalize-viewer (plotly/viewer x)))}
+   {:name :plotly :pred map? :fn (comp normalize-viewer plotly/viewer)}
    {:name :vega-lite :pred map? :fn (comp normalize-viewer vega-lite/viewer)}
    {:name :markdown :pred string? :fn markdown/viewer}
    {:name :code :pred string? :fn (comp normalize-viewer code/viewer)}
