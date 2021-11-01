@@ -170,19 +170,6 @@
 #_(select-viewer (html [:h1 "hi"]))
 #_(select-viewer (with-viewer* :elision {:remaining 10 :count 30 :offset 19}))
 
-(defonce
-  ^{:doc "atom containing a map of `:root` and per-namespace viewers."}
-  !viewers
-  (#?(:clj atom :cljs ratom/atom) {:root default-viewers}))
-
-#_(reset! !viewers {:root default-viewers})
-
-(defn get-viewers
-  "Returns all the viewers that apply in precendence of: optional local `viewers`, viewers set per `ns`, as well on the `:root`."
-  ([ns] (get-viewers ns nil))
-  ([ns expr-viewers]
-   (vec (concat expr-viewers (@!viewers ns) (@!viewers :root)))))
-
 (defn process-fns [viewers]
   (into []
         (map (fn [{:as viewer :keys [pred fn]}] (cond-> viewer
@@ -194,6 +181,23 @@
                                                       :cljs [(not (instance? Fn+Form fn))
                                                              (update :fn form->fn+form)]))))
         viewers))
+
+(defn process-default-viewers []
+  #?(:clj (process-fns default-viewers)
+     :cljs default-viewers))
+
+(defonce
+  ^{:doc "atom containing a map of `:root` and per-namespace viewers."}
+  !viewers
+  (#?(:clj atom :cljs ratom/atom) {:root (process-default-viewers)}))
+
+#_(reset! !viewers {:root (process-default-viewers)})
+
+(defn get-viewers
+  "Returns all the viewers that apply in precendence of: optional local `viewers`, viewers set per `ns`, as well on the `:root`."
+  ([ns] (get-viewers ns nil))
+  ([ns expr-viewers]
+   (vec (concat expr-viewers (@!viewers ns) (@!viewers :root)))))
 
 (defn closing-paren [{:as _viewer :keys [fn name]}]
   (or (when (list? fn) (-> fn last :close))
