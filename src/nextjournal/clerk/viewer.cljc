@@ -282,7 +282,7 @@
                         (or (not count) (< (inc offset) count))
 
                         (conj (with-viewer* :elision
-                                (cond-> {:offset (inc offset) :count count :path path}
+                                (cond-> (assoc count-opts :offset (inc offset) :path path)
                                   count (assoc :remaining (- count (inc offset))))))))
 
                     :else ;; leaf value
