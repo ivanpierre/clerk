@@ -100,14 +100,12 @@
   (html [:span.inspected-value
          [:span.syntax-tag "#'" (str x)]]))
 
-(declare eval-form)
-
 (defn ^:export read-string [s]
   (edamame/parse-string s {:all true
                            :read-cond :allow
                            :readers {'file (partial with-viewer :file)
                                      'object (partial with-viewer :object)
-                                     'function+ (partial viewer/form->fn+form eval-form)}
+                                     'function+ viewer/form->fn+form}
                            :features #{:clj}}))
 
 (defn opts->query [opts]
@@ -204,8 +202,6 @@
   [:span.inspected-value.whitespace-nowrap
    [:span.syntax-tag tag] value])
 
-(def ^:dynamic *eval-form*)
-
 (defn normalize-viewer [x]
   (if-let [viewer (-> x meta :nextjournal/viewer)]
     (with-viewer viewer x)
@@ -264,12 +260,12 @@
                                                      (into {} (map (juxt :name identity)) named-viewers) viewer)]
           (if-not render-fn
             (html (error-badge "no render function for viewer named " (str viewer)))
-            (let [render-fn (cond-> render-fn (not (fn? render-fn)) *eval-form*)]
+            (let [render-fn (cond-> render-fn (not (fn? render-fn)) *eval*)]
               (render-fn value (assoc opts :fetch-opts fetch-opts))))
           (html (error-badge "cannot find viewer named " (str viewer))))
 
         (or (list? viewer) (symbol? viewer))
-        (render-with-viewer opts (*eval-form* viewer) value)))
+        (render-with-viewer opts (*eval* viewer) value)))
 
 (defn guard [x f] (when (f x) x))
 
@@ -325,7 +321,7 @@
 (dc/defcard inspect-paginated-one
   []
   [:div
-   (when-let [value @(rf/subscribe [::blobs :vector])]
+   (when-let [value @(rf/subscribe [::blobs :list])]
      [inspect-paginated value])]
   {::blobs {:vector (vec (range 30))
             :vector-nested [1 [2] 3]
@@ -486,7 +482,7 @@
   (doseq [cell (viewer/value @!doc)
           :when (viewer/registration? cell)
           :let [form (viewer/value cell)]]
-    (*eval-form* form))
+    (*eval* form))
   (reset! !doc new-doc))
 
 (dc/defcard eval-viewer
@@ -696,4 +692,4 @@ black")}])}
 (defn eval-form [f]
   (sci/eval-form ctx f))
 
-(set! *eval-form* eval-form)
+(set! *eval* eval-form)

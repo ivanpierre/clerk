@@ -15,11 +15,8 @@
     ((:fn this) x y)))
 
 (defn form->fn+form
-  #?(:clj
-     ([form]
-      (map->Fn+Form {:form form :fn (eval form)})))
-  ([eval-fn form]
-   (map->Fn+Form {:form form :fn (eval-fn form)})))
+  ([form]
+   (map->Fn+Form {:form form :fn (#?(:clj eval :cljs *eval*) form)})))
 
 #?(:clj
    (defmethod print-method Fn+Form [v ^java.io.Writer w]
