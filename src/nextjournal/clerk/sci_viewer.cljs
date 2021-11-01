@@ -484,7 +484,7 @@
   [inspect @!doc])
 
 (defn ^:export reset-doc [new-doc]
-  (doseq [cell (viewer/value @!doc)
+  (doseq [cell (viewer/value new-doc)
           :when (viewer/registration? cell)
           :let [form (viewer/value cell)]]
     (*eval* form))
