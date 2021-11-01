@@ -94,7 +94,7 @@
    {:pred nil? :fn '(fn [_] (v/html [:span.syntax-nil.inspected-value "nil"]))}
    {:pred boolean? :fn '(fn [x] (v/html [:span.syntax-bool.inspected-value (str x)]))}
    {:pred fn? :name :fn :fn '(fn [x] (v/html [:span.inspected-value [:span.syntax-tag "#function"] "[" x "]"]))}
-   {:pred map-entry? :name :map-entry :fn '(fn [xs opts] (v/html (into [:<>] (comp (v/inspect-children opts) (interpose " ")) xs)))}
+   {:pred map-entry? :name :map-entry :fn '(fn [xs opts] (v/html (into [:<>] (comp (v/inspect-children opts) (interpose " ")) xs))) :fetch-opts {:n 2}}
    {:pred vector? :fn '(partial v/coll-viewer {:open "[" :close "]"}) :fetch-opts {:n 20}}
    {:pred set? :fn '(partial v/coll-viewer {:open "#{" :close "}"}) :fetch-opts {:n 20}}
    {:pred sequential? :fn '(partial v/coll-viewer {:open "(" :close ")"}) :fetch-opts {:n 1}}
@@ -200,7 +200,7 @@
    (vec (concat expr-viewers (@!viewers ns) (@!viewers :root)))))
 
 (defn closing-paren [{:as _viewer :keys [fn name]}]
-  (or (when (list? fn) (-> fn last :close))
+  (or (when (list? (:form fn)) (-> fn :form last :close))
       (when (= name :map) "}")))
 
 (defn bounded-count-opts [n xs]
@@ -227,14 +227,14 @@
 #_(sequence (drop+take-xf {:n 10}) (range 100))
 #_(sequence (drop+take-xf {:n 10 :offset 10}) (range 100))
 #_(sequence (drop+take-xf {}) (range 9))
-(declare with-viewer*)
-
+(declare with-viewer* assign-closing-parens)
 (defn describe
   "Returns a subset of a given `value`."
   ([xs]
    (describe xs {}))
   ([xs opts]
-   (describe xs (merge {:path [] :viewers (process-fns (get-viewers *ns* (viewers xs)))} opts) []))
+   (assign-closing-parens
+    (describe xs (merge {:path [] :viewers (process-fns (get-viewers *ns* (viewers xs)))} opts) [])))
   ([xs opts current-path]
    (let [{:as opts :keys [viewers path offset]} (merge {:offset 0} opts)
          {:as viewer :keys [fetch-opts]} (try (select-viewer xs viewers) ;; TODO: respect `viewers` on `xs`
@@ -346,25 +346,27 @@
         more (describe value (:nextjournal/value elision))]
     (merge-descriptions desc more)))
 
-
 (defn assign-closing-parens
   ([node] (assign-closing-parens {} node))
-  ([{:as ctx :keys [closing-parens]} {:as node :keys [children viewer]}]
+  ([{:as ctx :keys [closing-parens]} {:as node :nextjournal/keys [value viewer]}]
    (let [closing (closing-paren viewer)
-         defer-closing? (and (seq children)
-                             (or (-> children last :viewer closing-paren)
-                                 (and (= :map-entry (-> children last :viewer :name))
-                                      (-> children last :children last :viewer closing-paren))))]
+         non-leaf? (vector? value) ;; TODO: what's the best way to detect non-leaf?
+         defer-closing? (and non-leaf?
+                             (or (-> value last :nextjournal/viewer closing-paren) ;; the last element can carry parens
+                                 (and (= :map-entry (-> value last :nextjournal/viewer :name)) ;; the last element is a map entry whose value can carry parens
+                                      (-> value last :nextjournal/value last :nextjournal/viewer closing-paren))))]
      (cond-> node
-       (and closing (not defer-closing?)) (assoc-in [:viewer :closing-parens] (cons closing closing-parens))
-       (seq children) (update :children (fn [cs]
-                                          (into []
-                                                (map-indexed (fn [i x]
-                                                               (assign-closing-parens (if (and defer-closing? (= (dec (count cs)) i))
-                                                                                        (update ctx :closing-parens #(cons closing %))
-                                                                                        (dissoc ctx :closing-parens))
-                                                                                      x)))
-                                                cs)))))))
+       (and closing (not defer-closing?)) (assoc-in [:nextjournal/viewer :closing-parens] (cons closing closing-parens))
+       non-leaf? (update :nextjournal/value
+                         (fn [xs]
+                           (into []
+                                 (map-indexed (fn [i x]
+                                                (assign-closing-parens (if (and defer-closing? (= (dec (count xs)) i))
+                                                                         (update ctx :closing-parens #(cond->> % closing (cons closing)))
+                                                                         (dissoc ctx :closing-parens))
+                                                                       x)))
+                                 xs)))))))
+
 
 (defn closing-parens [path->info path]
   (get-in path->info [path :viewer :closing-parens]))

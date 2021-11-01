@@ -141,8 +141,7 @@
   (map-indexed (fn [idx x]
                  (inspect (update opts :path conj idx) x))))
 
-(defn coll-viewer [{:keys [open close]} xs {:as opts :keys [path] :or {path []}}]
-  #_(js/console.log :coll-viewer xs :opts opts)
+(defn coll-viewer [{:keys [open]} xs {:as opts :keys [path viewer] :or {path []}}]
   (html
    [view-context/consume
     :!expanded-at
@@ -160,8 +159,21 @@
                 (comp (inspect-children opts)
                       (interpose (if expanded? [:<> [:br] nbsp (when (= 2 (count open)) nbsp)] " ")))
                 xs)
-          ;; TODO: closing parens
-          (into [:<> close] #_(viewer/closing-parens path->info path))]]))]))
+          (into [:<>] (:closing-parens viewer))]]))]))
+
+(declare inspect-paginated)
+(dc/defcard coll-viewer
+  (into [:div]
+        (for [coll [
+                    {:foo (into #{} (range 3))}
+                    {:foo {:bar (range 1000)}}
+                    [1 [2]]
+                    [[1] 2]
+                    {:a "bar"  :c (range 10)}
+                    {:a "bar"  :c (range 10) :d 1}
+                    ]]
+          [:div.mb-3.result-viewer
+           [inspect-paginated coll]])))
 
 (defn elision-viewer [{:as fetch-opts :keys [remaining unbounded?]} _]
   (html [view-context/consume :fetch-fn
@@ -174,7 +186,7 @@
              :on-click #(when (fn? fetch-fn)
                           (fetch-fn fetch-opts))} remaining (when unbounded? "+") " more…"])]))
 
-(defn map-viewer [xs {:as opts :keys [path] :or {path []}}]
+(defn map-viewer [xs {:as opts :keys [path viewer] :or {path []}}]
   (html
    [view-context/consume
     :!expanded-at
@@ -190,9 +202,7 @@
                (comp (inspect-children opts)
                      (interpose (if expanded? [:<> [:br] (repeat (inc (count path)) nbsp)] " ")))
                xs)
-         ;; FIXME
-         (into [:<> "}"] #_(viewer/closing-parens path->info path))]))]
-   ))
+         (into [:<>] (:closing-parens viewer))]))]))
 
 (defn string-viewer [s opts]
   ;; TODO more button
@@ -285,8 +295,9 @@
          ;; TODO find option to disable client-side viewer selection
          (when-let [viewer (or (viewer/viewer x)
                                (viewer/select-viewer value all-viewers))]
-           (inspect opts (render-with-viewer (assoc opts :viewers all-viewers) viewer value)))))))
-
+           (inspect opts (render-with-viewer (assoc opts :viewers all-viewers :viewer viewer)
+                                             viewer
+                                             value)))))))
 
 (defn fetch! [{:keys [blob-id]} opts]
   #_(js/console.log :fetch! blob-id opts)
