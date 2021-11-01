@@ -248,7 +248,7 @@
 (declare default-viewers)
 
 (defn render-with-viewer [opts viewer value]
-  #_(prn :render-with-viewer {:value value :viewer viewer #_#_ :opts opts})
+  #_(js/console.log :render-with-viewer {:value value :viewer viewer #_#_ :opts opts})
   (cond (fn? viewer)
         (viewer value opts)
 
@@ -264,8 +264,11 @@
               (render-fn value (assoc opts :fetch-opts fetch-opts))))
           (html (error-badge "cannot find viewer named " (str viewer))))
 
-        (or (list? viewer) (symbol? viewer))
-        (render-with-viewer opts (*eval* viewer) value)))
+        (ifn? viewer)
+        (render-with-viewer opts viewer value)
+
+        :else
+        (html (error-badge "unusable viewer `" (pr-str viewer) "`"))))
 
 (defn guard [x f] (when (f x) x))
 
@@ -693,3 +696,4 @@ black")}])}
   (sci/eval-form ctx f))
 
 (set! *eval* eval-form)
+(swap! viewer/!viewers update :root viewer/process-fns)

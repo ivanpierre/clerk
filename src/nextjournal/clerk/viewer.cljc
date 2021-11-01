@@ -183,16 +183,16 @@
   ([ns expr-viewers]
    (vec (concat expr-viewers (@!viewers ns) (@!viewers :root)))))
 
-#?(:clj
-   (defn maybe->fn+form [x]
-     (cond-> x
-       (not (instance? Fn+Form x)) form->fn+form)))
-
 (defn process-fns [viewers]
   (into []
-        #?(:clj (map (fn [viewer] (-> viewer
-                                      (update :pred maybe->fn+form)
-                                      (update :fn ->Form)))))
+        (map (fn [{:as viewer :keys [pred fn]}] (cond-> viewer
+                                                  (not (instance? Fn+Form pred))
+                                                  (update :pred form->fn+form)
+
+                                                  #?@(:clj [(not (instance? Form fn))
+                                                            (update :fn ->Form)]
+                                                      :cljs [(not (instance? Fn+Form fn))
+                                                             (update :fn form->fn+form)]))))
         viewers))
 
 (defn closing-paren [{:as _viewer :keys [fn name]}]
@@ -303,11 +303,14 @@
 (defn desc->values
   "Takes a `description` and returns its value. Inverse of `describe`. Mostly useful for debugging."
   [description]
-  (let [x (value description)]
-    (cond->> x
-      (vector? x)
-      (into (case (-> description viewer :name) :map {} [])
-            (map desc->values)))))
+  (let [x (value description)
+        viewer (viewer description)]
+    (if (= viewer :elision)
+      '…
+      (cond->> x
+        (vector? x)
+        (into (case (-> description viewer :name) :map {} [])
+              (map desc->values))))))
 
 #_(desc->values (describe [1 [2 {:a :b} 2] 3 (range 100)]))
 
