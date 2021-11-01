@@ -16,19 +16,19 @@
 
 #_(var->data #'var->data)
 
-(defn fn->data [f]
+(defn fn->str [f]
   (let [pr-rep (pr-str f)
         f-name (subs pr-rep (count "#function[") (- (count pr-rep) 1))]
-    (v/with-viewer* :fn f-name)))
+    f-name))
 
-#_(fn->data (fn []))
-#_(fn->data +)
+#_(fn->str (fn []))
+#_(fn->str +)
 
 (defn make-printable [x]
   (cond-> x
     (var? x) var->data
     (meta x) (with-meta {})
-    (fn? x) fn->data))
+    (fn? x) fn->str))
 
 #_(meta (make-printable ^{:f (fn [])} []))
 
@@ -93,7 +93,7 @@
 (def resource->static-url
   {"/css/app.css" "https://storage.googleapis.com/nextjournal-cas-eu/data/8VxQBDwk3cvr1bt8YVL5m6bJGrFEmzrSbCrH1roypLjJr4AbbteCKh9Y6gQVYexdY85QA2HG5nQFLWpRp69zFSPDJ9"
    "/css/viewer.css" "https://storage.googleapis.com/nextjournal-cas-eu/data/8VxoxUgsBRs2yjjBBcfeCc8XigM7erXHmjJg2tjdGxNBxwTYuDonuYswXqRStaCA2b3rTEPCgPwixJmAVrea1qAHHU"
-   "/js/viewer.js" "https://storage.googleapis.com/nextjournal-cas-eu/data/8VtomK9uyrZipJEtVJgWXmtWEe5QwTQMcDicZuzS6ff72osSx9ZCWfMV6XVAXt9TUTdGSok6FmS3SkbrZv4b9gRgce"})
+   "/js/viewer.js" "https://storage.googleapis.com/nextjournal-cas-eu/data/8VwSpq8RpVvJYKtd2T11VLXm3tdrfbp4pag6feW4u7YYNSoFG4NT3PLV5oxJR52fcyooZRaxKF4JAagBaMQkeHGGsx"})
 
 (defn ->html [{:keys [conn-ws? live-js?] :or {conn-ws? true live-js? live-js?}} doc]
   (hiccup/html5
