@@ -100,7 +100,7 @@
    {:pred map-entry? :name :map-entry :fn '(fn [xs opts] (v/html (into [:<>] (comp (v/inspect-children opts) (interpose " ")) xs)))}
    {:pred vector? :fn '(partial v/coll-viewer {:open "[" :close "]"}) :fetch-opts {:n 20}}
    {:pred set? :fn '(partial v/coll-viewer {:open "#{" :close "}"}) :fetch-opts {:n 20}}
-   {:pred (some-fn list? sequential?) :fn '(partial v/coll-viewer {:open "(" :close ")"}) :fetch-opts {:n 20}}
+   {:pred sequential? :fn '(partial v/coll-viewer {:open "(" :close ")"}) :fetch-opts {:n 1}}
    {:pred map? :name :map :fn 'v/map-viewer :fetch-opts {:n 10}}
    {:pred uuid? :fn '(fn [x] (v/html (v/tagged-value "#uuid" [:span.syntax-string.inspected-value "\"" (str x) "\""])))}
    {:pred inst? :fn '(fn [x] (v/html (v/tagged-value "#inst" [:span.syntax-string.inspected-value "\"" (str x) "\""])))}])
@@ -281,7 +281,6 @@
                         (or (not count) (< (inc offset) count))
 
                         (conj (with-viewer* :elision
-                                #_#_:path (conj path offset)
                                 (cond-> {:offset (inc offset) :count count :path path}
                                   count (assoc :remaining (- count (inc offset))))))))
 
@@ -290,7 +289,7 @@
 
 (comment
   (describe 123)
-  (-> (describe (range 100)) :value peek)
+  (-> (describe (range 100)) value peek)
   (describe {:hello [1 2 3]})
   (describe {:one [1 2 3] 1 2 3 4})
   (describe [1 2 [1 [2] 3] 4 5])
@@ -300,14 +299,32 @@
   (describe (subs (slurp "/usr/share/dict/words") 0 1000))
   (describe (plotly {:data [{:z [[1 2 3] [3 2 1]] :type "surface"}]}))
   (describe (with-viewer* :html [:h1 "hi"]))
+  (describe (range))
   (describe {1 [2]}))
+
+
+(defn desc->values
+  "Takes a `description` and returns its value. Inverse of `describe`. Mostly useful for debugging."
+  [description]
+  (let [x (value description)]
+    (cond->> x
+      (vector? x)
+      (into (case (-> description viewer :name) :map {} [])
+            (map desc->values)))))
+
+#_(desc->values (describe [1 [2 {:a :b} 2] 3 (range 100)]))
+
 
 (defn path-to-value [path]
   (conj (interleave path (repeat :nextjournal/value)) :nextjournal/value))
 
 (defn merge-descriptions [root more]
   (update-in root (path-to-value (:path more)) (fn [value]
-                                                 (into (pop value) (:nextjournal/value more)))))
+                                                 (let [{:keys [offset path]} (-> value peek :nextjournal/value)
+                                                       path-from-value (conj path offset)
+                                                       path-from-more (-> more :nextjournal/value first :path)]
+                                                   (assert (= path-from-value path-from-more) "paths mismatch")
+                                                   (into (pop value) (:nextjournal/value more))))))
 
 (comment
   (let [value (range 30)
