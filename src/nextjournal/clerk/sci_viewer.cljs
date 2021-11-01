@@ -141,25 +141,21 @@
   (map-indexed (fn [idx x]
                  (inspect (update opts :path conj idx) x))))
 
-(defn coll-viewer [{:keys [open]} xs {:as opts :keys [path viewer] :or {path []}}]
-  (html
-   [view-context/consume
-    :!expanded-at
-    (fn [!expanded-at]
-      (let [expanded? (@!expanded-at path)]
-        [:span.inspected-value.whitespace-nowrap
-         {:class (when expanded? "inline-flex")}
-         [:span
-          [:span.bg-opacity-70.whitespace-nowrap
-           (when (< 1 (count xs))
-             {:on-click (partial toggle-expanded !expanded-at path)
-              :class "cursor-pointer bg-indigo-50 hover:bg-indigo-100 hover:rounded-sm border-b border-gray-400 hover:border-gray-500"})
-           open]
-          (into [:<>]
-                (comp (inspect-children opts)
-                      (interpose (if expanded? [:<> [:br] nbsp (when (= 2 (count open)) nbsp)] " ")))
-                xs)
-          (into [:<>] (:closing-parens viewer))]]))]))
+(defn coll-viewer [{:keys [open]} xs {:as opts :keys [path viewer !expanded-at]}]
+  (html (let [expanded? (@!expanded-at path)]
+          [:span.inspected-value.whitespace-nowrap
+           {:class (when expanded? "inline-flex")}
+           [:span
+            [:span.bg-opacity-70.whitespace-nowrap
+             (when (< 1 (count xs))
+               {:on-click (partial toggle-expanded !expanded-at path)
+                :class "cursor-pointer bg-indigo-50 hover:bg-indigo-100 hover:rounded-sm border-b border-gray-400 hover:border-gray-500"})
+             open]
+            (into [:<>]
+                  (comp (inspect-children opts)
+                        (interpose (if expanded? [:<> [:br] nbsp (when (= 2 (count open)) nbsp)] " ")))
+                  xs)
+            (into [:<>] (:closing-parens viewer))]])))
 
 (declare inspect-paginated)
 (dc/defcard coll-viewer
@@ -186,23 +182,19 @@
              :on-click #(when (fn? fetch-fn)
                           (fetch-fn fetch-opts))} remaining (when unbounded? "+") " more…"])]))
 
-(defn map-viewer [xs {:as opts :keys [path viewer] :or {path []}}]
-  (html
-   [view-context/consume
-    :!expanded-at
-    (fn [!expanded-at]
-      (let [expanded? (@!expanded-at path)]
-        [:span.inspected-value.whitespace-nowrap
-         [:span.bg-opacity-70
-          (when (expandable? xs)
-            {:on-click (partial toggle-expanded !expanded-at path)
-             :class "cursor-pointer bg-indigo-50 hover:bg-indigo-100 hover:rounded-sm border-b border-gray-400 hover:border-gray-500"})
-          "{"]
-         (into [:<>]
-               (comp (inspect-children opts)
-                     (interpose (if expanded? [:<> [:br] (repeat (inc (count path)) nbsp)] " ")))
-               xs)
-         (into [:<>] (:closing-parens viewer))]))]))
+(defn map-viewer [xs {:as opts :keys [path viewer !expanded-at] :or {path []}}]
+  (html (let [expanded? (@!expanded-at path)]
+          [:span.inspected-value.whitespace-nowrap
+           [:span.bg-opacity-70
+            (when (expandable? xs)
+              {:on-click (partial toggle-expanded !expanded-at path)
+               :class "cursor-pointer bg-indigo-50 hover:bg-indigo-100 hover:rounded-sm border-b border-gray-400 hover:border-gray-500"})
+            "{"]
+           (into [:<>]
+                 (comp (inspect-children opts)
+                       (interpose (if expanded? [:<> [:br] (repeat (inc (count path)) nbsp)] " ")))
+                 xs)
+           (into [:<>] (:closing-parens viewer))])))
 
 (defn string-viewer [s opts]
   ;; TODO more button
@@ -285,8 +277,7 @@
 (defn inspect
   ([x]
    (r/with-let [!expanded-at (r/atom {})]
-     [view-context/provide {:!expanded-at !expanded-at}
-      [inspect {} x]]))
+     [inspect {:!expanded-at !expanded-at} x]))
   ([{:as opts :keys [viewers]} x]
    (let [value (viewer/value x)
          {:as opts :keys [viewers]} (assoc opts :viewers (vec (concat (viewer/viewers x) viewers)))
@@ -335,13 +326,13 @@
 (dc/defcard inspect-paginated-one
   []
   [:div
-   (when-let [value @(rf/subscribe [::blobs :list])]
+   (when-let [value @(rf/subscribe [::blobs :recursive-range])]
      [inspect-paginated value])]
   {::blobs {:vector (vec (range 30))
             :vector-nested [1 [2] 3]
             :vector-nested-taco '[l [l [l [l [🌮] r] r] r] r]
             :list (range 30)
-            :recursive-range (map range (range 30))
+            :recursive-range (map range (range))
             :map-1 {:hello :world}
             :map-vec-val {:hello [:world]}
             :map (zipmap (range 30) (range 30))}})
