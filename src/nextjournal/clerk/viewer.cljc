@@ -14,6 +14,9 @@
   (#?(:clj invoke :cljs -invoke) [this x y]
     ((:fn this) x y)))
 
+(defn fn+form? [x]
+  (instance? Fn+Form x))
+
 (defn form->fn+form
   ([form]
    (map->Fn+Form {:form form :fn (#?(:clj eval :cljs *eval*) form)})))
@@ -86,23 +89,23 @@
 ;; keep viewer selection stricly in Clojure
 (def default-viewers
   ;; maybe make this a sorted-map
-  [{:pred string? :fn 'v/string-viewer :fetch-opts {:n elide-string-length}}
-   {:pred number? :fn '(fn [x] (v/html [:span.syntax-number.inspected-value
-                                        (if (js/Number.isNaN x) "NaN" (str x))]))}
-   {:pred symbol? :fn '(fn [x] (v/html [:span.syntax-symbol.inspected-value x]))}
-   {:pred keyword? :fn '(fn [x] (v/html [:span.syntax-keyword.inspected-value (str x)]))}
-   {:pred nil? :fn '(fn [_] (v/html [:span.syntax-nil.inspected-value "nil"]))}
-   {:pred boolean? :fn '(fn [x] (v/html [:span.syntax-bool.inspected-value (str x)]))}
-   {:pred fn? :name :fn :fn '(fn [x] (v/html [:span.inspected-value [:span.syntax-tag "#function"] "[" x "]"]))}
-   {:pred map-entry? :name :map-entry :fn '(fn [xs opts] (v/html (into [:<>] (comp (v/inspect-children opts) (interpose " ")) xs))) :fetch-opts {:n 2}}
-   {:pred vector? :fn '(partial v/coll-viewer {:open "[" :close "]"}) :fetch-opts {:n 20}}
-   {:pred set? :fn '(partial v/coll-viewer {:open "#{" :close "}"}) :fetch-opts {:n 20}}
-   {:pred sequential? :fn '(partial v/coll-viewer {:open "(" :close ")"}) :fetch-opts {:n 20}}
-   {:pred map? :name :map :fn 'v/map-viewer :fetch-opts {:n 10}}
-   {:pred uuid? :fn '(fn [x] (v/html (v/tagged-value "#uuid" [:span.syntax-string.inspected-value "\"" (str x) "\""])))}
-   {:pred inst? :fn '(fn [x] (v/html (v/tagged-value "#inst" [:span.syntax-string.inspected-value "\"" (str x) "\""])))}])
+  [{:pred string? :render-fn 'v/string-viewer :fetch-opts {:n elide-string-length}}
+   {:pred number? :render-fn '(fn [x] (v/html [:span.syntax-number.inspected-value
+                                               (if (js/Number.isNaN x) "NaN" (str x))]))}
+   {:pred symbol? :render-fn '(fn [x] (v/html [:span.syntax-symbol.inspected-value x]))}
+   {:pred keyword? :render-fn '(fn [x] (v/html [:span.syntax-keyword.inspected-value (str x)]))}
+   {:pred nil? :render-fn '(fn [_] (v/html [:span.syntax-nil.inspected-value "nil"]))}
+   {:pred boolean? :render-fn '(fn [x] (v/html [:span.syntax-bool.inspected-value (str x)]))}
+   {:pred fn? :name :render-fn :render-fn '(fn [x] (v/html [:span.inspected-value [:span.syntax-tag "#function"] "[" x "]"]))}
+   {:pred map-entry? :name :map-entry :render-fn '(fn [xs opts] (v/html (into [:<>] (comp (v/inspect-children opts) (interpose " ")) xs))) :fetch-opts {:n 2}}
+   {:pred vector? :render-fn '(partial v/coll-viewer {:open "[" :close "]"}) :fetch-opts {:n 20}}
+   {:pred set? :render-fn '(partial v/coll-viewer {:open "#{" :close "}"}) :fetch-opts {:n 20}}
+   {:pred sequential? :render-fn '(partial v/coll-viewer {:open "(" :close ")"}) :fetch-opts {:n 20}}
+   {:pred map? :name :map :render-fn 'v/map-viewer :fetch-opts {:n 10}}
+   {:pred uuid? :render-fn '(fn [x] (v/html (v/tagged-value "#uuid" [:span.syntax-string.inspected-value "\"" (str x) "\""])))}
+   {:pred inst? :render-fn '(fn [x] (v/html (v/tagged-value "#inst" [:span.syntax-string.inspected-value "\"" (str x) "\""])))}])
 
-;; consider adding second arg to `:fn` function, that would be the fetch function
+;; consider adding second arg to `:render-fn` function, that would be the fetch function
 
 (def named-viewers
   #{:html
@@ -175,14 +178,14 @@
 
 (defn process-fns [viewers]
   (into []
-        (map (fn [{:as viewer :keys [pred fn]}] (cond-> viewer
-                                                  (not (instance? Fn+Form pred))
-                                                  (update :pred form->fn+form)
+        (map (fn [{:as viewer :keys [pred render-fn]}] (cond-> viewer
+                                                         (not (instance? Fn+Form pred))
+                                                         (update :pred form->fn+form)
 
-                                                  #?@(:clj [(not (instance? Form fn))
-                                                            (update :fn ->Form)]
-                                                      :cljs [(not (instance? Fn+Form fn))
-                                                             (update :fn form->fn+form)]))))
+                                                         #?@(:clj [(not (instance? Form render-fn))
+                                                                   (update :render-fn ->Form)]
+                                                             :cljs [(not (instance? Fn+Form render-fn))
+                                                                    (update :render-fn form->fn+form)]))))
         viewers))
 
 (defn process-default-viewers []
@@ -202,8 +205,8 @@
   ([ns expr-viewers]
    (vec (concat expr-viewers (@!viewers ns) (@!viewers :root)))))
 
-(defn closing-paren [{:as _viewer :keys [fn name]}]
-  (or (when (list? (:form fn)) (-> fn :form last :close))
+(defn closing-paren [{:as _viewer :keys [render-fn name]}]
+  (or (when (list? (:form render-fn)) (-> render-fn :form last :close))
       (when (= name :map) "}")))
 
 (defn bounded-count-opts [n xs]
@@ -303,7 +306,7 @@
   (describe {:one [1 2 3] 1 2 3 4})
   (describe [1 2 [1 [2] 3] 4 5])
   (describe (clojure.java.io/file "notebooks"))
-  (describe {:viewers [{:pred sequential? :fn pr-str}]} (range 100))
+  (describe {:viewers [{:pred sequential? :render-fn pr-str}]} (range 100))
   (describe (map vector (range)))
   (describe (subs (slurp "/usr/share/dict/words") 0 1000))
   (describe (plotly {:data [{:z [[1 2 3] [3 2 1]] :type "surface"}]}))
@@ -438,7 +441,7 @@
       wrap-value
       (assoc :nextjournal/viewers viewers)))
 
-#_(->> "x^2" (with-viewer* :latex) (with-viewers* [{:name :latex :fn :mathjax}]))
+#_(->> "x^2" (with-viewer* :latex) (with-viewers* [{:name :latex :render-fn :mathjax}]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; public convience api
