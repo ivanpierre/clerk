@@ -179,14 +179,15 @@
 (defn process-fns [viewers]
   (into []
         (map (fn [{:as viewer :keys [pred render-fn]}] (cond-> viewer
-                                                         (not (instance? Fn+Form pred))
-                                                         (update :pred form->fn+form)
+                                                         (or (symbol? pred) (not (ifn? pred)))
+                                                         (update :pred #?(:cljs *eval* :clj eval))
 
                                                          #?@(:clj [(not (instance? Form render-fn))
                                                                    (update :render-fn ->Form)]
                                                              :cljs [(not (instance? Fn+Form render-fn))
                                                                     (update :render-fn form->fn+form)]))))
         viewers))
+(ifn? 'inc)
 
 (defn process-default-viewers []
   #?(:clj (process-fns default-viewers)
