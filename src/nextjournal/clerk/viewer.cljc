@@ -162,7 +162,7 @@
      (let [val (value x)]
        (loop [v viewers]
          (if-let [{:as matching-viewer :keys [pred]} (first v)]
-           (if (and pred (pred val))
+           (if (and pred (fn? pred) (pred val)) ;; TODO: appropriate check?
              matching-viewer
              (recur (rest v)))
            (throw (ex-info (str "cannot find matchting viewer for `" (pr-str x) "`") {:viewers viewers :x val}))))))))
@@ -178,16 +178,19 @@
 
 (defn process-fns [viewers]
   (into []
-        (map (fn [{:as viewer :keys [pred render-fn]}] (cond-> viewer
-                                                         (or (symbol? pred) (not (ifn? pred)))
-                                                         (update :pred #?(:cljs *eval* :clj eval))
+        (map (fn [{:as viewer :keys [pred render-fn transform-fn]}]
+               (cond-> viewer
+                 (or (symbol? pred) (not (ifn? pred)))
+                 (update :pred #?(:cljs *eval* :clj eval))
 
-                                                         #?@(:clj [(not (instance? Form render-fn))
-                                                                   (update :render-fn ->Form)]
-                                                             :cljs [(not (instance? Fn+Form render-fn))
-                                                                    (update :render-fn form->fn+form)]))))
+                 (or (symbol? transform-fn) (not (ifn? transform-fn)))
+                 (update :transform-fn #?(:cljs *eval* :clj eval))
+
+                 #?@(:clj [(not (instance? Form render-fn))
+                           (update :render-fn ->Form)]
+                     :cljs [(not (instance? Fn+Form render-fn))
+                            (update :render-fn form->fn+form)]))))
         viewers))
-(ifn? 'inc)
 
 (defn process-default-viewers []
   #?(:clj (process-fns default-viewers)
@@ -245,11 +248,12 @@
     (describe xs (merge {:path [] :viewers (process-fns (get-viewers *ns* (viewers xs)))} opts) [])))
   ([xs opts current-path]
    (let [{:as opts :keys [viewers path offset]} (merge {:offset 0} opts)
-         {:as viewer :keys [fetch-opts]} (try (select-viewer xs viewers) ;; TODO: respect `viewers` on `xs`
-                                              (catch #?(:clj Exception :cljs js/Error) _ex
-                                                nil))
+         {:as viewer :keys [fetch-opts transform-fn]} (try (select-viewer xs viewers) ;; TODO: respect `viewers` on `xs`
+                                                           (catch #?(:clj Exception :cljs js/Error) _ex
+                                                             (println :Bang! (ex-message _ex))
+                                                             nil))
          fetch-opts (merge fetch-opts (select-keys opts [:offset]))
-         xs (value xs)]
+         xs (cond-> (value xs) #?@(:clj [(fn? transform-fn) transform-fn]))]
      #_(prn :xs xs :type (type xs) :path path :current-path current-path)
      (merge {:path path}
             (with-viewer* viewer
