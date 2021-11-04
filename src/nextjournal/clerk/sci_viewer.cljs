@@ -277,7 +277,7 @@
      (or (when (react/isValidElement value) value)
          ;; TODO find option to disable client-side viewer selection
          (when-let [viewer (or (viewer/viewer x)
-                               (viewer/select-viewer value all-viewers))]
+                               (:nextjournal/viewer (viewer/wrapped-with-viewer value all-viewers)))]
            (inspect opts (render-with-viewer (assoc opts :viewers all-viewers :viewer viewer)
                                              viewer
                                              value)))))))

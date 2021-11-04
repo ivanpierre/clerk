@@ -43,10 +43,8 @@
 ;; TODO: think about naming this to indicate it does nothing if the value is already wrapped.
 (defn wrap-value
   "Ensures `x` is wrapped in a map under a `:nextjournal/value` key."
-  [x]
-  (if (and (map? x) (:nextjournal/value x))
-    x
-    {:nextjournal/value x}))
+  ([x] (if (and (map? x) (:nextjournal/value x)) x {:nextjournal/value x}))
+  ([x v] (-> x wrap-value (assoc :nextjournal/viewer v))))
 
 #_(wrap-value 123)
 #_(wrap-value {:nextjournal/value 456})
@@ -149,32 +147,36 @@
 
 (declare with-viewer*)
 
-(defn select-viewer
-  ([x] (select-viewer x default-viewers))
+(defn wrapped-with-viewer
+  ([x] (wrapped-with-viewer x default-viewers))
   ([x viewers]
    (if-let [selected-viewer (viewer x)]
      (cond (keyword? selected-viewer)
            (if (named-viewers selected-viewer)
-             selected-viewer
+             (wrap-value x selected-viewer)
              (throw (ex-info (str "cannot find viewer named " selected-viewer) {:selected-viewer selected-viewer :x (value x) :viewers viewers})))
            (instance? Form selected-viewer)
-           selected-viewer)
+           (wrap-value x selected-viewer))
      (let [val (value x)]
        (loop [v viewers]
          (if-let [{:as matching-viewer :keys [pred]} (first v)]
-           (if (and pred (fn? pred) (pred val)) ;; TODO: appropriate check?
-             matching-viewer
+           (if (and pred (fn? pred) (pred val))                      ;; FIXME: remove :pred key if it's been described in clj backend
+             (let [{:keys [render-fn transform-fn]} matching-viewer
+                   val (cond-> val (fn? transform-fn) transform-fn)] ;; FIXME: same here for :transform-fn
+               (if (and (not render-fn) (fn? transform-fn))          ;; FIXME: same here
+                 (wrapped-with-viewer val viewers)
+                 (wrap-value val matching-viewer)))
              (recur (rest v)))
            (throw (ex-info (str "cannot find matchting viewer for `" (pr-str x) "`") {:viewers viewers :x val}))))))))
 
-#_(select-viewer {:one :two})
-#_(select-viewer [1 2 3])
-#_(select-viewer (range 3))
-#_(select-viewer (clojure.java.io/file "notebooks"))
-#_(select-viewer (md "# Hello"))
-#_(select-viewer (html [:h1 "hi"]))
-#_(select-viewer (with-viewer* :elision {:remaining 10 :count 30 :offset 19}))
-#_(select-viewer (with-viewer* (->Form '(fn [name] (html [:<> "Hello " name]))) "James"))
+#_(wrapped-with-viewer {:one :two})
+#_(wrapped-with-viewer [1 2 3])
+#_(wrapped-with-viewer (range 3))
+#_(wrapped-with-viewer (clojure.java.io/file "notebooks"))
+#_(wrapped-with-viewer (md "# Hello"))
+#_(wrapped-with-viewer (html [:h1 "hi"]))
+#_(wrapped-with-viewer (with-viewer* :elision {:remaining 10 :count 30 :offset 19}))
+#_(wrapped-with-viewer (with-viewer* (->Form '(fn [name] (html [:<> "Hello " name]))) "James"))
 
 (defn process-fns [viewers]
   (into []
@@ -186,9 +188,9 @@
                  (or (symbol? transform-fn) (not (ifn? transform-fn)))
                  (update :transform-fn #?(:cljs *eval* :clj eval))
 
-                 #?@(:clj [(not (instance? Form render-fn))
+                 #?@(:clj [(and render-fn (not (instance? Form render-fn)))
                            (update :render-fn ->Form)]
-                     :cljs [(not (instance? Fn+Form render-fn))
+                     :cljs [(and render-fn (not (instance? Fn+Form render-fn)))
                             (update :render-fn form->fn+form)]))))
         viewers))
 
@@ -248,12 +250,10 @@
     (describe xs (merge {:path [] :viewers (process-fns (get-viewers *ns* (viewers xs)))} opts) [])))
   ([xs opts current-path]
    (let [{:as opts :keys [viewers path offset]} (merge {:offset 0} opts)
-         {:as viewer :keys [fetch-opts transform-fn]} (try (select-viewer xs viewers) ;; TODO: respect `viewers` on `xs`
-                                                           (catch #?(:clj Exception :cljs js/Error) _ex
-                                                             (println :Bang! (ex-message _ex))
-                                                             nil))
-         fetch-opts (merge fetch-opts (select-keys opts [:offset]))
-         xs (cond-> (value xs) #?@(:clj [(fn? transform-fn) transform-fn]))]
+         {xs :nextjournal/value viewer :nextjournal/viewer} (try (wrapped-with-viewer xs viewers) ;; TODO: respect `viewers` on `xs`
+                                                                 (catch #?(:clj Exception :cljs js/Error) _ex
+                                                                   nil))
+         fetch-opts (merge (:fetch-opts viewer) (select-keys opts [:offset]))]
      #_(prn :xs xs :type (type xs) :path path :current-path current-path)
      (merge {:path path}
             (with-viewer* viewer
