@@ -21,6 +21,7 @@
 
  :aliases {:sci {:extra-deps  {applied-science/js-interop  {:mvn/version "0.3.0"}
                                borkdude/sci {:mvn/version "0.2.6"}
+                               reagent/reagent {:mvn/version "1.1.0"}
                                io.github.nextjournal/viewers {:git/url "git@github.com:nextjournal/viewers.git"
                                                               :git/sha "1a8e3300601780dccb18d5548f7d35b31b7934f9"}
                                metosin/reitit-frontend     {:mvn/version "0.5.15"}}}
