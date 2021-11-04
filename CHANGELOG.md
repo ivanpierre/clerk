@@ -5,6 +5,10 @@ Changes can be:
 * 🐞🐜 friendly or nasty bugs
 * 🛠 dev improvements
 
+## Unreleased
+
+* ⭐️ Wrap sci context and edamame read options in an atom to let consumers change it
+
 ## 0.2.214 (2021-11-04)
 
 * 💫 Support setting `:nextjournal.clerk/no-cache` on namespaces
