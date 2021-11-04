@@ -4,7 +4,8 @@
         org.clojure/tools.analyzer.jvm {:mvn/version "1.1.0"}
         org.clojure/tools.deps.alpha {:mvn/version "0.11.905"}
         babashka/fs {:mvn/version "0.0.5"}
-        borkdude/edamame {:mvn/version "0.0.11"}
+        borkdude/edamame {:git/url "https://github.com/borkdude/edamame"
+                          :git/sha "7c750781456968a34d3cf09ad48865fb76a20251"}
         weavejester/dependency {:mvn/version "0.2.1"}
 
         com.nextjournal/beholder {:mvn/version "1.0.0"}
